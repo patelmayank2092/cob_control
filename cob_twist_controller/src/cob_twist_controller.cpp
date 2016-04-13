@@ -164,7 +164,7 @@ bool CobTwistController::initialize()
     ros::Duration(1.0).sleep();
 
     /// initialize ROS interfaces
-    obstacle_distance_sub_ = nh_.subscribe("obstacle_distances", 1, &CallbackDataMediator::distancesToObstaclesCallback, &callback_data_mediator_);
+    obstacle_distance_sub_ = nh_.subscribe("obstacle_distance", 1, &CallbackDataMediator::distancesToObstaclesCallback, &callback_data_mediator_);
     jointstate_sub_ = nh_.subscribe("joint_states", 1, &CobTwistController::jointstateCallback, this);
     twist_sub_ = nh_twist.subscribe("command_twist", 1, &CobTwistController::twistCallback, this);
     twist_stamped_sub_ = nh_twist.subscribe("command_twist_stamped", 1, &CobTwistController::twistStampedCallback, this);
