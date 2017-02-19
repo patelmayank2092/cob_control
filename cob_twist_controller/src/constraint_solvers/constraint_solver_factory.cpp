@@ -37,6 +37,7 @@
 #include "cob_twist_controller/constraint_solvers/solvers/gradient_projection_method_solver.h"
 #include "cob_twist_controller/constraint_solvers/solvers/task_priority_solver.h"
 #include "cob_twist_controller/constraint_solvers/solvers/stack_of_tasks_solver.h"
+#include "cob_twist_controller/constraint_solvers/solvers/non_linear_least_square_solver.h"
 
 #include "cob_twist_controller/damping_methods/damping.h"
 #include "cob_twist_controller/constraints/constraint.h"
@@ -101,6 +102,9 @@ bool ConstraintSolverFactory::getSolverFactory(const TwistControllerParams& para
             break;
         case GPM:
             solver_factory.reset(new SolverFactory<GradientProjectionMethodSolver>(params, limiter_params, task_stack_controller));
+            break;
+        case NLS:
+            solver_factory.reset(new SolverFactory<NonLinearLeastSquareNormSolver>(params, limiter_params, task_stack_controller));
             break;
         case STACK_OF_TASKS:
             solver_factory.reset(new SolverFactory<StackOfTasksSolver>(params, limiter_params, task_stack_controller));

@@ -5,6 +5,9 @@ find_package(catkin REQUIRED COMPONENTS cmake_modules cob_control_msgs cob_srvs 
 
 find_package(Boost REQUIRED COMPONENTS thread)
 
+find_package(Ceres REQUIRED)
+message("-- Found Ceres version ${CERES_VERSION}: ${CERES_INCLUDE_DIRS}")
+
 find_package(Eigen REQUIRED)
 add_definitions(${EIGEN_DEFINITIONS})
 
@@ -18,13 +21,13 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
   CATKIN_DEPENDS cob_control_msgs cob_srvs dynamic_reconfigure eigen_conversions geometry_msgs kdl_conversions kdl_parser nav_msgs roscpp sensor_msgs std_msgs tf tf_conversions urdf visualization_msgs
-  DEPENDS Boost
+  DEPENDS Boost CERES
   INCLUDE_DIRS include
   LIBRARIES damping_methods inv_calculations constraint_solvers limiters controller_interfaces kinematic_extensions inverse_differential_kinematics_solver twist_controller
 )
 
 ### BUILD ###
-include_directories(include ${catkin_INCLUDE_DIRS} ${EIGEN_INCLUDE_DIRS} ${orocos_kdl_INCLUDE_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS} ${EIGEN_INCLUDE_DIRS} ${orocos_kdl_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS})
 
 set(SRC_C_DIR "src/constraint_solvers")
 set(SRC_CS_DIR "${SRC_C_DIR}/solvers")
@@ -37,7 +40,7 @@ add_library(inv_calculations src/inverse_jacobian_calculations/inverse_jacobian_
 add_dependencies(inv_calculations ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(inv_calculations ${catkin_LIBRARIES})
 
-add_library(constraint_solvers ${SRC_CS_DIR}/unconstraint_solver.cpp ${SRC_CS_DIR}/wln_joint_limit_avoidance_solver.cpp ${SRC_CS_DIR}/weighted_least_norm_solver.cpp ${SRC_CS_DIR}/gradient_projection_method_solver.cpp ${SRC_CS_DIR}/stack_of_tasks_solver.cpp ${SRC_CS_DIR}/task_priority_solver.cpp ${SRC_C_DIR}/constraint_solver_factory.cpp)
+add_library(constraint_solvers ${SRC_CS_DIR}/unconstraint_solver.cpp ${SRC_CS_DIR}/wln_joint_limit_avoidance_solver.cpp ${SRC_CS_DIR}/weighted_least_norm_solver.cpp ${SRC_CS_DIR}/gradient_projection_method_solver.cpp ${SRC_CS_DIR}/non_linear_least_square_norm_solver.cpp ${SRC_CS_DIR}/stack_of_tasks_solver.cpp ${SRC_CS_DIR}/task_priority_solver.cpp ${SRC_C_DIR}/constraint_solver_factory.cpp)
 add_dependencies(constraint_solvers ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(constraint_solvers damping_methods inv_calculations)
 
