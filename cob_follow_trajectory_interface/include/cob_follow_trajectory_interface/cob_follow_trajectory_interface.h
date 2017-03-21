@@ -48,11 +48,10 @@ protected:
 
 public:
 
-  FollowTrajectoryInterface(std::string name, std::string action_ns) :
-    nh_(name),
+  FollowTrajectoryInterface(std::string name) :
     robot_model_loader("robot_description"),
     as_(nh_, action_ns_, boost::bind(&FollowTrajectoryInterface::goalCallback, this, _1 ),false),
-    action_name_(action_ns),
+    action_name_(name),
     action_ns_(name)
   {
       /*as_.registerGoalCallback(boost::bind(&FollowTrajectoryInterface::goalCallback, this));

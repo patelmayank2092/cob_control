@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- Follow trajectory stuff -->
+  <node ns="arm" name="follow_trajectory_interface" pkg="cob_follow_trajectory_interface" type="cob_follow_trajectory_interface_node" cwd="node" respawn="false" output="screen"/>
+
+
+</launch>
