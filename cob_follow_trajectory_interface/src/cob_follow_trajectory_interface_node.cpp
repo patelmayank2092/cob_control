@@ -3,13 +3,13 @@
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "arm");
+    ros::init(argc, argv, "cob_follow_trajectory_interface_node");
     //new_handle.reset(new FollowJointTrajectoryControllerHandle(name, action_ns));
-    FollowTrajectoryInterface* cob_follow_trajectory_interface = new FollowTrajectoryInterface("arm","follow_joint_trajectory");
+    FollowTrajectoryInterface* cob_follow_trajectory_interface = new FollowTrajectoryInterface("follow_joint_trajectory");
 
     if (!cob_follow_trajectory_interface->initialize())
     {
-        ROS_ERROR("Failed to initialize TwistController");
+        ROS_ERROR("Failed to initialize Follow TRajectory Interface Node");
         return -1;
     }
 

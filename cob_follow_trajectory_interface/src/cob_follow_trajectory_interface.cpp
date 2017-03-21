@@ -2,13 +2,13 @@
 
 bool FollowTrajectoryInterface::initialize(){
 
-    if (!nh_.getParam("/arm/chain_tip_link", chain_tip_link_))
+    if (!nh_.getParam("chain_tip_link", chain_tip_link_))
     {
         ROS_ERROR("Parameter 'chain_tip_link' not set");
         return false;
     }
 
-    if (!nh_.getParam("/arm/chain_base_link", root_frame_))
+    if (!nh_.getParam("chain_base_link", root_frame_))
     {
         ROS_ERROR("Parameter 'reference_frame' not set");
         return false;
