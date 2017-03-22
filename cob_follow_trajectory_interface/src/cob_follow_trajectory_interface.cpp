@@ -2,34 +2,59 @@
 
 bool FollowTrajectoryInterface::initialize(){
 
+    ros::NodeHandle nh_tracker("frame_tracker");
+
     if (!nh_.getParam("chain_tip_link", chain_tip_link_))
     {
         ROS_ERROR("Parameter 'chain_tip_link' not set");
         return false;
     }
 
-    if (!nh_.getParam("chain_base_link", root_frame_))
+    if (!nh_.getParam("chain_base_link", chain_base_link_))
     {
         ROS_ERROR("Parameter 'reference_frame' not set");
         return false;
     }
+
+    if (!nh_.getParam("root_frame", root_frame_))
+    {
+        ROS_ERROR("Parameter 'reference_frame' not set");
+        return false;
+    }
+
     if (!nh_.getParam("update_rate", update_rate_))
     {
-        update_rate_ = 50.0;  // hz
+        update_rate_ = 2.0;  // hz
     }
 
     /// Private Nodehandle
-    if (!nh_.getParam("target_frame", target_frame_))
+    if (!nh_tracker.getParam("target_frame", target_frame_))
     {
         ROS_WARN("Parameter 'target_frame' not set. Using default 'cartesian_target'");
         target_frame_ = DEFAULT_CARTESIAN_TARGET;
     }
-
+    target_frame_ = DEFAULT_CARTESIAN_TARGET;
     ROS_WARN("Waiting for Services...");
     start_tracking_ = nh_.serviceClient<cob_srvs::SetString>("frame_tracker/start_tracking");
     stop_tracking_ = nh_.serviceClient<std_srvs::Trigger>("frame_tracker/stop");
     start_tracking_.waitForExistence();
     tracking_ = false;
+    tracking_frame_ = chain_tip_link_;
+
+    bool transform_available = false;
+    while (!transform_available)
+    {
+        try
+        {
+            tf_listener_.lookupTransform(root_frame_, tracking_frame_, ros::Time(), target_pose_);
+            transform_available = true;
+        }
+        catch (tf::TransformException& ex)
+        {
+            // ROS_WARN("IFT::initialize: Waiting for transform...(%s)",ex.what());
+            ros::Duration(0.1).sleep();
+        }
+    }
 
     kinematic_model = robot_model_loader.getModel();
     ROS_INFO("Model frame: %s", kinematic_model->getModelFrame().c_str());
@@ -110,8 +135,24 @@ void FollowTrajectoryInterface::goalCallback(const control_msgs::FollowJointTraj
     // initially broadcast target_frame
     tf::Transform identity = tf::Transform();
     identity.setIdentity();
-    tf_broadcaster_.sendTransform(tf::StampedTransform(identity, ros::Time::now(), chain_tip_link_, target_frame_));
+    tf_broadcaster_.sendTransform(tf::StampedTransform(identity, ros::Time::now(), root_frame_, target_frame_));
 
+    // Interpolate path
+
+    acceptGoal(goal->trajectory);
+
+    //ADD INTERPOLATION
+
+
+    if (cartesian_path_->poses.size()<1)
+    {
+        actionAbort(false, "Failed to obtain Cartesian trajectory");
+        return;
+    }
+    // Publish Preview
+    utils_.previewPath(*cartesian_path_);
+    ROS_INFO("PREVIEWING THE TRACJEYTORY");
+    sleep(10);
     // Activate Tracking
     if (!startTracking())
     {
@@ -120,7 +161,7 @@ void FollowTrajectoryInterface::goalCallback(const control_msgs::FollowJointTraj
     }
 
     // Execute path
-    if (!posePathBroadcaster(goal->trajectory))
+    if (!posePathBroadcaster(*cartesian_path_))
     {
         actionAbort(false, "Failed to execute path for 'move_lin'");
         return;
@@ -142,17 +183,11 @@ void FollowTrajectoryInterface::goalCallback(const control_msgs::FollowJointTraj
  }
 
  // Broadcasting interpolated Cartesian path
- bool FollowTrajectoryInterface::posePathBroadcaster(const trajectory_msgs::JointTrajectory trajectory)
+ bool FollowTrajectoryInterface::posePathBroadcaster(const geometry_msgs::PoseArray cartesian_path)
  {
      bool success = true;
      ros::Rate rate(update_rate_);
      tf::Transform transform;
-
-     robot_state::RobotStatePtr kinematic_state(new robot_state::RobotState(kinematic_model));
-
-     const robot_state::JointModelGroup* joint_model_group = kinematic_model->getJointModelGroup("arm");
-
-     const std::vector<std::string> &joint_names = joint_model_group->getJointModelNames();
 
      if (!as_.isActive())
      {
@@ -160,70 +195,73 @@ void FollowTrajectoryInterface::goalCallback(const control_msgs::FollowJointTraj
      }
 
      std::vector<double> joint_values;
-     for(int i=0;i<trajectory.points.size();i++){
+     for(int i=0;i<cartesian_path.poses.size();i++){
 
-         kinematic_state->copyJointGroupPositions(joint_model_group, joint_values);
-         joint_values=trajectory.points[i].positions;
 
-         // publish info to the console for the user
-         ROS_INFO_STREAM("Actual point"<< trajectory.points[0]);
-         // start executing the action
-         kinematic_state->setJointGroupPositions(joint_model_group,joint_values);
-         const Eigen::Affine3d &end_effector_state = kinematic_state-> getGlobalLinkTransform(chain_tip_link_);
-
-         /* Print end-effector pose. Remember that this is in the model frame */
-         ROS_INFO_STREAM("Translation: " << end_effector_state.translation());
-         ROS_INFO_STREAM("Rotation: " << end_effector_state.rotation());
-         ROS_INFO_STREAM("Number of points:"<<trajectory.points.size());
-         startTracking();
-
-         geometry_msgs::Pose go;
-         go.position.x=end_effector_state.translation()[0];
-         go.position.y=end_effector_state.translation()[1];
-         go.position.z=end_effector_state.translation()[2];
-         Eigen::Quaterniond q(end_effector_state.rotation());
-         go.orientation.w=q.w();
-         go.orientation.x=q.x();
-         go.orientation.y=q.y();
-         go.orientation.z=q.z();
              // Send/Refresh target Frame
-         transform.setOrigin(tf::Vector3(end_effector_state.translation()[0],
-                                         end_effector_state.translation()[1],
-                                         end_effector_state.translation()[2]));
+         transform.setOrigin(tf::Vector3(cartesian_path.poses[i].position.x,
+                                         cartesian_path.poses[i].position.y,
+                                         cartesian_path.poses[i].position.z));
 
-         transform.setRotation(tf::Quaternion(q.w(),q.x(),q.y(),q.z()));
+         transform.setRotation(tf::Quaternion(cartesian_path.poses[i].orientation.x,
+                                              cartesian_path.poses[i].orientation.y,
+                                              cartesian_path.poses[i].orientation.z,
+                                              cartesian_path.poses[i].orientation.w));
 
-         ROS_INFO_STREAM("PUblish Translation: " << end_effector_state.translation()[0] << end_effector_state.translation()[1] << end_effector_state.translation()[2]);
-         ROS_INFO_STREAM("PUblish Rotation: " << q.w() << q.x() << q.y() << q.z());
-         ROS_INFO_STREAM("ROOT_FRAME:"<<root_frame_);
-         ROS_INFO_STREAM("TARGET_FRAME:"<<target_frame_);
-         tf_broadcaster_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "odom_combined", target_frame_));
-
-         /*Eigen::Quaterniond q(end_effector_state.rotation());
-         * tf::Transform transform;
-         transform.setOrigin(tf::Vector3(end_effector_state.translation()[0],
-                                          end_effector_state.translation()[1],
-                                          end_effector_state.translation()[2]));
-         transform.setRotation(tf::Quaternion(q.w(),q.x(),q.y(),q.z()));
-
-         tf_broadcaster_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "base_link", "gripper"));
-
-         geometry_msgs::Pose go;
-         go.position.x=end_effector_state.translation()[0];
-         go.position.y=end_effector_state.translation()[1];
-         go.position.z=end_effector_state.translation()[2];
-         Eigen::Quaterniond q(end_effector_state.rotation());
-         go.orientation.w=q.w();
-         go.orientation.x=q.x();
-         go.orientation.y=q.y();
-         go.orientation.z=q.z();
-         */
+         tf_broadcaster_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), root_frame_, target_frame_));
 
          ros::spinOnce();
          rate.sleep();
      }
 
      return success;
+ }
+
+void FollowTrajectoryInterface::acceptGoal(const trajectory_msgs::JointTrajectory trajectory){
+
+     robot_state::RobotStatePtr kinematic_state(new robot_state::RobotState(kinematic_model));
+
+     const robot_state::JointModelGroup* joint_model_group = kinematic_model->getJointModelGroup("arm");
+
+     const std::vector<std::string> &joint_names = joint_model_group->getJointModelNames();
+
+     std::vector<double> joint_values;
+
+     (*cartesian_path_).poses.clear();
+     cartesian_path_->poses.resize(trajectory.points.size());
+
+     for(int i=0;i<trajectory.points.size();i++){
+
+         joint_values=trajectory.points[i].positions;
+
+         // publish info to the console for the user
+         ROS_INFO_STREAM("Actual point"<< trajectory.points[i]);
+         // start executing the action
+         kinematic_state->setJointGroupPositions(joint_model_group,joint_values);
+         ROS_INFO("1");
+         const Eigen::Affine3d &end_effector_state = kinematic_state->getGlobalLinkTransform(chain_tip_link_);
+         ROS_INFO("1");
+         Eigen::Quaterniond q(end_effector_state.rotation());
+         ROS_INFO("%f",end_effector_state.translation()[0]);
+
+         (*cartesian_path_).poses[i].position.y=end_effector_state.translation()[0];
+         ROS_INFO("1");
+         (*cartesian_path_).poses[i].position.y=end_effector_state.translation()[1];
+         (*cartesian_path_).poses[i].position.z=end_effector_state.translation()[2];
+
+         (*cartesian_path_).poses[i].orientation.x=q.x();
+         (*cartesian_path_).poses[i].orientation.y=q.y();
+         (*cartesian_path_).poses[i].orientation.z=q.z();
+         (*cartesian_path_).poses[i].orientation.w=q.w();
+         (*cartesian_path_).header.frame_id=root_frame_;
+
+         /* DEBUG INFO */
+         ROS_INFO_STREAM("PUblish Translation: " << end_effector_state.translation()[0] << end_effector_state.translation()[1] << end_effector_state.translation()[2]);
+         ROS_INFO_STREAM("PUblish Rotation: " << q.w() << q.x() << q.y() << q.z());
+         ROS_INFO_STREAM("ROOT_FRAME:"<<root_frame_);
+         ROS_INFO_STREAM("TARGET_FRAME:"<<target_frame_);
+
+     }
  }
 
  void FollowTrajectoryInterface::actionAbort(const bool success, const std::string& message)
