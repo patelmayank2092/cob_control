@@ -35,8 +35,12 @@ catkin_package(
 
 include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIRS})
 
+add_library(follow_trajectory_utils src/follow_trajectory_utils.cpp)
+add_dependencies(follow_trajectory_utils ${catkin_EXPORTED_TARGETS})
+target_link_libraries(follow_trajectory_utils ${catkin_LIBRARIES})
+
 add_library(${PROJECT_NAME} src/cob_follow_trajectory_interface.cpp)
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${orocos_kdl_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${orocos_kdl_LIBRARIES} ${Boost_LIBRARIES} follow_trajectory_utils)
 
 add_executable(${PROJECT_NAME}_node src/cob_follow_trajectory_interface_node.cpp)
 add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

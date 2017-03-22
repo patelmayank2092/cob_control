@@ -16,8 +16,9 @@
 #include <moveit/robot_model/robot_model.h>
 #include <moveit/robot_state/robot_state.h>
 
+#include <cob_follow_trajectory_interface/follow_trajectory_utils.h>
 
-#define DEFAULT_CARTESIAN_TARGET "arm_target"
+#define DEFAULT_CARTESIAN_TARGET "arm_target2"
 
 
 class FollowTrajectoryInterface
@@ -35,16 +36,22 @@ protected:
 
   tf::TransformListener tf_listener_;
   tf::TransformBroadcaster tf_broadcaster_;
+  tf::StampedTransform target_pose_;
+
   ros::ServiceClient start_tracking_;
+  std::string tracking_frame_;    // the frame tracking the target
   ros::ServiceClient stop_tracking_;
   bool tracking_;
 
   double update_rate_;
-  std::string root_frame_, chain_tip_link_, target_frame_;
+  std::string root_frame_, chain_tip_link_, target_frame_,chain_base_link_;
 
   //MoveIt
   robot_model_loader::RobotModelLoader robot_model_loader;
   robot_model::RobotModelPtr kinematic_model;
+
+  FollowTrajectoryUtils utils_;
+  boost::shared_ptr<geometry_msgs::PoseArray> cartesian_path_;
 
 public:
 
@@ -57,6 +64,8 @@ public:
       /*as_.registerGoalCallback(boost::bind(&FollowTrajectoryInterface::goalCallback, this));
       as_.registerPreemptCallback(boost::bind(&FollowTrajectoryInterface::preemptCallback, this));*/
       as_.start();
+      cartesian_path_.reset(new geometry_msgs::PoseArray);
+
   }
 
   ~FollowTrajectoryInterface(void)
@@ -64,6 +73,8 @@ public:
   }
 
   void goalCallback(const control_msgs::FollowJointTrajectoryGoalConstPtr& goal);
+
+  void acceptGoal(const trajectory_msgs::JointTrajectory trajectory);
 
   bool preemptCallback(const control_msgs::FollowJointTrajectoryGoalConstPtr& goal);
 
@@ -73,7 +84,7 @@ public:
 
   bool initialize();
 
-  bool posePathBroadcaster(const trajectory_msgs::JointTrajectory trajectory);
+  bool posePathBroadcaster(const geometry_msgs::PoseArray cartesian_path);
 
   bool startTracking();
 
