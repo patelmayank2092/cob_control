@@ -153,12 +153,12 @@ Eigen::MatrixXd NonLinearLeastSquareNormSolver::solve(const Vector6d_t& in_cart_
       // Set up the only cost function (also known as residual). This uses
       // auto-differentiation to obtain the derivative (jacobian).
       double damping=0.01;
-      CostFunction* cost_function = new AutoDiffCostFunction<Q1, 1, 6>(new Q1(this->jacobian_data_,in_cart_velocities,damping));
-      CostFunction* cost_function2 = new AutoDiffCostFunction<Q2, 1, 6>(new Q2(this->jacobian_data_,in_cart_velocities,damping));
-      CostFunction* cost_function3 = new AutoDiffCostFunction<Q3, 1, 6>(new Q3(this->jacobian_data_,in_cart_velocities,damping));
-      CostFunction* cost_function4 = new AutoDiffCostFunction<Q4, 1, 6>(new Q4(this->jacobian_data_,in_cart_velocities,damping));
-      CostFunction* cost_function5 = new AutoDiffCostFunction<Q5, 1, 6>(new Q5(this->jacobian_data_,in_cart_velocities,damping));
-      CostFunction* cost_function6 = new AutoDiffCostFunction<Q6, 1, 6>(new Q6(this->jacobian_data_,in_cart_velocities,damping));
+      CostFunction* cost_function = new AutoDiffCostFunction<Q1, 1, 6>(new Q1(this->jacobian_data_,in_cart_velocities,this->params_.lambda_max));
+      CostFunction* cost_function2 = new AutoDiffCostFunction<Q2, 1, 6>(new Q2(this->jacobian_data_,in_cart_velocities,this->params_.lambda_max));
+      CostFunction* cost_function3 = new AutoDiffCostFunction<Q3, 1, 6>(new Q3(this->jacobian_data_,in_cart_velocities,this->params_.lambda_max));
+      CostFunction* cost_function4 = new AutoDiffCostFunction<Q4, 1, 6>(new Q4(this->jacobian_data_,in_cart_velocities,this->params_.lambda_max));
+      CostFunction* cost_function5 = new AutoDiffCostFunction<Q5, 1, 6>(new Q5(this->jacobian_data_,in_cart_velocities,this->params_.lambda_max));
+      CostFunction* cost_function6 = new AutoDiffCostFunction<Q6, 1, 6>(new Q6(this->jacobian_data_,in_cart_velocities,this->params_.lambda_max));
       problem.AddResidualBlock(cost_function,NULL,x);
       problem.AddResidualBlock(cost_function2,NULL,x);
       problem.AddResidualBlock(cost_function3,NULL,x);
