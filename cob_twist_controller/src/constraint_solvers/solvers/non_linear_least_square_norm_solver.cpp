@@ -41,7 +41,7 @@ class Q1{
 
     template <typename T>
     bool operator()(const T* const q, T* e) const {
-        e[0] = T(x_(0))-T(J_(0,0))*q[0]-T(J_(0,1))*q[1]-T(J_(0,2))*q[2]-T(J_(0,3))*q[3]-T(J_(0,4))*q[4]-T(J_(0,5))*q[5];
+        e[0] = T(x_(0))-T(J_(0,0))*q[0]-T(J_(0,1))*q[1]-T(J_(0,2))*q[2]-T(J_(0,3))*q[3]-T(J_(0,4))*q[4]-T(J_(0,5))*q[5]+lambda_*q[0]*q[0];
         return true;
     }
 
@@ -58,7 +58,7 @@ class Q2{
 
     template <typename T>
     bool operator()(const T* const q, T* e) const {
-        e[0] = T(x_(1))-T(J_(1,0))*q[0]-T(J_(1,1))*q[1]-T(J_(1,2))*q[2]-T(J_(1,3))*q[3]-T(J_(1,4))*q[4]-T(J_(1,5))*q[5];
+        e[0] = T(x_(1))-T(J_(1,0))*q[0]-T(J_(1,1))*q[1]-T(J_(1,2))*q[2]-T(J_(1,3))*q[3]-T(J_(1,4))*q[4]-T(J_(1,5))*q[5]+lambda_*q[1]*q[1];
         return true;
     }
 
@@ -74,7 +74,7 @@ class Q3{
 
     template <typename T>
     bool operator()(const T* const q, T* e) const {
-        e[0] = T(x_(2))-T(J_(2,0))*q[0]-T(J_(2,1))*q[1]-T(J_(2,2))*q[2]-T(J_(2,3))*q[3]-T(J_(2,4))*q[4]-T(J_(2,5))*q[5];
+        e[0] = T(x_(2))-T(J_(2,0))*q[0]-T(J_(2,1))*q[1]-T(J_(2,2))*q[2]-T(J_(2,3))*q[3]-T(J_(2,4))*q[4]-T(J_(2,5))*q[5]+lambda_*q[2]*q[2];
         return true;
     }
 
@@ -90,7 +90,7 @@ class Q4{
 
     template <typename T>
     bool operator()(const T* const q, T* e) const {
-        e[0] = T(x_(3))-T(J_(3,0))*q[0]-T(J_(3,1))*q[1]-T(J_(3,2))*q[2]-T(J_(3,3))*q[3]-T(J_(3,4))*q[4]-T(J_(3,5))*q[5];
+        e[0] = T(x_(3))-T(J_(3,0))*q[0]-T(J_(3,1))*q[1]-T(J_(3,2))*q[2]-T(J_(3,3))*q[3]-T(J_(3,4))*q[4]-T(J_(3,5))*q[5]+lambda_*q[3]*q[3];
         return true;
     }
 
@@ -106,7 +106,7 @@ class Q5{
 
     template <typename T>
     bool operator()(const T* const q, T* e) const {
-        e[0] = T(x_(4))-T(J_(4,0))*q[0]-T(J_(4,1))*q[1]-T(J_(4,2))*q[2]-T(J_(4,3))*q[3]-T(J_(4,4))*q[4]-T(J_(4,5))*q[5];
+        e[0] = T(x_(4))-T(J_(4,0))*q[0]-T(J_(4,1))*q[1]-T(J_(4,2))*q[2]-T(J_(4,3))*q[3]-T(J_(4,4))*q[4]-T(J_(4,5))*q[5]+lambda_*q[4]*q[4];
         return true;
     }
 
@@ -122,7 +122,7 @@ class Q6{
 
     template <typename T>
     bool operator()(const T* const q, T* e) const {
-        e[0] = T(x_(5))-T(J_(5,0))*q[0]-T(J_(5,1))*q[1]-T(J_(5,2))*q[2]-T(J_(5,3))*q[3]-T(J_(5,4))*q[4]-T(J_(5,5))*q[5];
+        e[0] = T(x_(5))-T(J_(5,0))*q[0]-T(J_(5,1))*q[1]-T(J_(5,2))*q[2]-T(J_(5,3))*q[3]-T(J_(5,4))*q[4]-T(J_(5,5))*q[5]+lambda_*q[5]*q[5];
         return true;
     }
 
