@@ -255,12 +255,12 @@ void FollowTrajectoryInterface::acceptGoal(const trajectory_msgs::JointTrajector
          ROS_INFO_STREAM("Actual point"<< trajectory.points[i]);
          // start executing the action
 
-         double dumb = joint_values[0];
-         ROS_INFO_STREAM("!");
+         /*double dumb = joint_values[0];
+
          joint_values[0]=joint_values[2];
-         ROS_INFO_STREAM("!");
-         joint_values[2]=dumb;
-         ROS_INFO_STREAM("!");
+
+         joint_values[2]=dumb;*/
+
          kinematic_state->setJointGroupPositions(joint_model_group,joint_values);
          ROS_INFO("Model frame: %s", kinematic_model->getModelFrame().c_str());
 
