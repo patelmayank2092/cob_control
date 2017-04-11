@@ -137,6 +137,25 @@ bool CobTwistController::initialize()
         }
     }
 
+    // Configure Controller Interface
+    if (!nh_twist.getParam("controller_interface", twist_controller_params_.controller_interface))
+    {
+        ROS_ERROR("Parameter 'controller_interface' not set");
+        return false;
+    }
+    nh_twist.param<double>("integrator_smoothing", twist_controller_params_.integrator_smoothing, 0.2);
+    try
+    {
+        interface_loader_.reset(new pluginlib::ClassLoader<cob_twist_controller::ControllerInterfaceBase>("cob_twist_controller", "cob_twist_controller::ControllerInterfaceBase"));
+        this->controller_interface_ = interface_loader_->createInstance(twist_controller_params_.controller_interface);
+        this->controller_interface_->initialize(this->nh_, this->twist_controller_params_);
+    }
+    catch(pluginlib::PluginlibException& ex)
+    {
+        ROS_ERROR("The controller_interface plugin failed to load. Error: %s", ex.what());
+        return false;
+    }
+
     twist_controller_params_.frame_names.clear();
     for (uint16_t i = 0; i < chain_.getNrOfSegments(); ++i)
     {
@@ -170,8 +189,6 @@ bool CobTwistController::initialize()
     twist_stamped_sub_ = nh_twist.subscribe("command_twist_stamped", 1, &CobTwistController::twistStampedCallback, this);
 
     odometry_sub_ = nh_.subscribe("base/odometry", 1, &CobTwistController::odometryCallback, this);
-
-    this->controller_interface_.reset(ControllerInterfaceBuilder::createControllerInterface(this->nh_, this->twist_controller_params_, this->joint_states_));
 
     /// publisher for visualizing current twist direction
     twist_direction_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("twist_direction", 1);
@@ -214,14 +231,12 @@ void CobTwistController::reconfigureCallback(cob_twist_controller::TwistControll
 {
     this->checkSolverAndConstraints(config);
 
-    twist_controller_params_.controller_interface = static_cast<ControllerInterfaceTypes>(config.controller_interface);
-    twist_controller_params_.integrator_smoothing = config.integrator_smoothing;
-
     twist_controller_params_.numerical_filtering = config.numerical_filtering;
     twist_controller_params_.damping_method = static_cast<DampingMethodTypes>(config.damping_method);
     twist_controller_params_.damping_factor = config.damping_factor;
     twist_controller_params_.lambda_max = config.lambda_max;
     twist_controller_params_.w_threshold = config.w_threshold;
+    twist_controller_params_.slope_damping = config.slope_damping;
     twist_controller_params_.beta = config.beta;
     twist_controller_params_.eps_damping = config.eps_damping;
 
@@ -235,9 +250,12 @@ void CobTwistController::reconfigureCallback(cob_twist_controller::TwistControll
     const double activation_buffer_jla_in_percent = config.activation_buffer_jla;
     const double critical_jla_in_percent = config.critical_threshold_jla;
     twist_controller_params_.thresholds_jla.activation =  activation_jla_in_percent / 100.0;
+    twist_controller_params_.thresholds_jla.activation_position_threshold_jla=config.activation_position_threshold_jla;
+    twist_controller_params_.thresholds_jla.activation_speed_threshold_jla=config.activation_speed_threshold_jla;
     twist_controller_params_.thresholds_jla.activation_with_buffer = twist_controller_params_.thresholds_jla.activation * (1.0 + activation_buffer_jla_in_percent / 100.0);
     twist_controller_params_.thresholds_jla.critical =  critical_jla_in_percent / 100.0;
     twist_controller_params_.damping_jla = config.damping_jla;
+    twist_controller_params_.damping_speed_jla = config.damping_speed_jla;
 
     twist_controller_params_.constraint_ca = static_cast<ConstraintTypesCA>(config.constraint_ca);
     twist_controller_params_.priority_ca = config.priority_ca;
@@ -253,15 +271,18 @@ void CobTwistController::reconfigureCallback(cob_twist_controller::TwistControll
     twist_controller_params_.eps_truncation = config.eps_truncation;
 
     twist_controller_params_.limiter_params.keep_direction = config.keep_direction;
+    twist_controller_params_.limiter_params.enforce_input_limits = config.enforce_input_limits;
     twist_controller_params_.limiter_params.enforce_pos_limits = config.enforce_pos_limits;
     twist_controller_params_.limiter_params.enforce_vel_limits = config.enforce_vel_limits;
     twist_controller_params_.limiter_params.enforce_acc_limits = config.enforce_acc_limits;
     twist_controller_params_.limiter_params.limits_tolerance = config.limits_tolerance;
+    twist_controller_params_.limiter_params.max_lin_twist = config.max_lin_twist;
+    twist_controller_params_.limiter_params.max_rot_twist = config.max_rot_twist;
+    twist_controller_params_.limiter_params.max_vel_lin_base = config.max_vel_lin_base;
+    twist_controller_params_.limiter_params.max_vel_rot_base = config.max_vel_rot_base;
 
     twist_controller_params_.kinematic_extension = static_cast<KinematicExtensionTypes>(config.kinematic_extension);
     twist_controller_params_.extension_ratio = config.extension_ratio;
-
-    this->controller_interface_.reset(ControllerInterfaceBuilder::createControllerInterface(this->nh_, this->twist_controller_params_, this->joint_states_));
 
     p_inv_diff_kin_solver_->resetAll(this->twist_controller_params_);
 }
@@ -277,6 +298,14 @@ void CobTwistController::checkSolverAndConstraints(cob_twist_controller::TwistCo
         twist_controller_params_.constraint_jla = JLA_OFF;
         twist_controller_params_.constraint_ca = CA_OFF;
         config.constraint_jla = static_cast<int>(twist_controller_params_.constraint_jla);
+        config.constraint_ca = static_cast<int>(twist_controller_params_.constraint_ca);
+        warning = true;
+    }
+
+    if (UNIFIED_JLA_SA == solver && CA_OFF != static_cast<ConstraintTypesCA>(config.constraint_ca))
+    {
+        ROS_ERROR("The Unified JLA and SA solution doesn\'t support collision avoidance. Currently UNIFIED_JLA_SA is only implemented for SA and JLA ...");
+        twist_controller_params_.constraint_ca = CA_OFF;
         config.constraint_ca = static_cast<int>(twist_controller_params_.constraint_ca);
         warning = true;
     }
@@ -329,10 +358,16 @@ void CobTwistController::checkSolverAndConstraints(cob_twist_controller::TwistCo
 
     if (twist_controller_params_.limiter_params.limits_tolerance <= DIV0_SAFE)
     {
-        ROS_ERROR("The limits_tolerance for enforce limits is smaller than DIV/0 threshold. Therefore both enforce_limits are set to false!");
+        ROS_ERROR("The limits_tolerance for enforce limits is smaller than DIV/0 threshold. Therefore output limiting is disabled");
         twist_controller_params_.limiter_params.enforce_pos_limits = config.enforce_pos_limits = false;
         twist_controller_params_.limiter_params.enforce_vel_limits = config.enforce_vel_limits = false;
         twist_controller_params_.limiter_params.enforce_acc_limits = config.enforce_acc_limits = false;
+    }
+    if (twist_controller_params_.limiter_params.max_lin_twist <= DIV0_SAFE ||
+        twist_controller_params_.limiter_params.max_rot_twist <= DIV0_SAFE)
+    {
+        ROS_ERROR("The limits used to limit Cartesian velocities are smaller than DIV/0 threshold. Therefore input limiting is disabled");
+        twist_controller_params_.limiter_params.enforce_input_limits = config.enforce_input_limits = false;
     }
 
     if (!warning)
