@@ -56,7 +56,10 @@ bool FollowTrajectoryInterface::initialize(){
         }
     }
 
-    kinematic_model = robot_model_loader.getModel();
+    get_planning_scene_ = nh_.serviceClient<cob_srvs::SetString>("/get_planning_scene");
+    get_planning_scene_.waitForExistence();
+    robot_model_loader::RobotModelLoaderPtr robot_model_loader_ptr_(new robot_model_loader::RobotModelLoader("robot_description","robot_description_semantic"));
+    kinematic_model = robot_model_loader2.getModel();
     ROS_INFO("Model frame: %s", kinematic_model->getModelFrame().c_str());
 
     ROS_INFO("Follow Trajectory Interface running");
@@ -219,11 +222,21 @@ void FollowTrajectoryInterface::goalCallback(const control_msgs::FollowJointTraj
 
 void FollowTrajectoryInterface::acceptGoal(const trajectory_msgs::JointTrajectory trajectory){
 
-     kinematic_model = robot_model_loader.getModel();
+
+    robot_model_loader::RobotModelLoaderPtr robot_model_loader_ptr_(new robot_model_loader::RobotModelLoader("robot_description","robot_description_semantic"));
+     kinematic_model = robot_model_loader_ptr_->getModel();
 
      ROS_INFO("Model frame: %s", kinematic_model->getModelFrame().c_str());
 
      robot_state::RobotStatePtr kinematic_state(new robot_state::RobotState(kinematic_model));
+     bool joint_model=kinematic_model->hasJointModelGroup("arm");
+     std::vector<std::string> group_names = kinematic_model->getJointModelGroupNames();
+
+     for (int i =0; i< group_names.size();i++)
+         ROS_INFO_STREAM("Joint groups:"<<group_names[i]);
+
+     if(!joint_model)
+         ROS_INFO_STREAM("JOINT MODEL NOT FOUND");
 
      const robot_state::JointModelGroup* joint_model_group = kinematic_model->getJointModelGroup("arm");
 
@@ -234,7 +247,7 @@ void FollowTrajectoryInterface::acceptGoal(const trajectory_msgs::JointTrajector
      (*cartesian_path_).poses.clear();
      cartesian_path_->poses.resize(trajectory.points.size());
 
-     for(int i=0;i<trajectory.points.size()+1;i++){
+     for(int i=0;i<trajectory.points.size();i++){
 
          joint_values=trajectory.points[i].positions;
 
@@ -243,8 +256,11 @@ void FollowTrajectoryInterface::acceptGoal(const trajectory_msgs::JointTrajector
          // start executing the action
 
          double dumb = joint_values[0];
+         ROS_INFO_STREAM("!");
          joint_values[0]=joint_values[2];
+         ROS_INFO_STREAM("!");
          joint_values[2]=dumb;
+         ROS_INFO_STREAM("!");
          kinematic_state->setJointGroupPositions(joint_model_group,joint_values);
          ROS_INFO("Model frame: %s", kinematic_model->getModelFrame().c_str());
 
