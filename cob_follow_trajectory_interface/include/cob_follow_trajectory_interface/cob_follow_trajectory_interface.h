@@ -39,6 +39,7 @@ protected:
   tf::StampedTransform target_pose_;
 
   ros::ServiceClient start_tracking_;
+  ros::ServiceClient get_planning_scene_;
   std::string tracking_frame_;    // the frame tracking the target
   ros::ServiceClient stop_tracking_;
   bool tracking_;
@@ -47,7 +48,7 @@ protected:
   std::string root_frame_, chain_tip_link_, target_frame_,chain_base_link_;
 
   //MoveIt
-  robot_model_loader::RobotModelLoader robot_model_loader;
+  robot_model_loader::RobotModelLoader robot_model_loader2;
   robot_model::RobotModelPtr kinematic_model;
 
   FollowTrajectoryUtils utils_;
@@ -56,7 +57,7 @@ protected:
 public:
 
   FollowTrajectoryInterface(std::string name) :
-    robot_model_loader("robot_description"),
+    robot_model_loader2("robot_description","robot_description_semantic"),
     as_(nh_, action_ns_, boost::bind(&FollowTrajectoryInterface::goalCallback, this, _1 ),false),
     action_name_(name),
     action_ns_(name)
