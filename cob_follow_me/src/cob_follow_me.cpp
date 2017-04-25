@@ -122,8 +122,28 @@ bool FollowMe::stopTracking()
     return success;
 }
 
-void FollowMe::WrenchCallback(const control_msgs::FollowJointTrajectoryGoalConstPtr &goal)
+void FollowMe::WrenchCallback(const geometry_msgs::WrenchStampedPtr &goal)
 {
+    ROS_INFO_STREAM("Force values received" << " : " << goal->wrench.force);
+
+    ROS_INFO_STREAM("Torque values received" << " : " << goal->wrench.torque);
+
+    Vector6d wrench;
+    tf::wrenchMsgToEigen(goal->wrench, wrench);
+    Eigen::Vector3d force;
+    force << wrench(0), wrench(1), wrench(2);
+    Eigen::Vector3d torque;
+    torque << wrench(3), wrench(4), wrench(5);
+    Eigen::Vector3d force_rotated;
+    Eigen::Vector3d torque_rotated;
+
+    bool success = setTransform(chain_tip_link_,root_frame_,force,force_rotated);
+
+    success = setTransform(chain_tip_link_,root_frame_,torque,torque_rotated);
+
+    ROS_INFO_STREAM("Force values received translated from" << chain_tip_link_ << " to " << root_frame_ << " : " << force_rotated);
+
+    ROS_INFO_STREAM("Force values received translated from" << chain_tip_link_ << " to " << root_frame_ << " : " << torque_rotated);
 
 }
 
@@ -232,9 +252,49 @@ void FollowMe::acceptGoal(const trajectory_msgs::JointTrajectory trajectory){
  }
 
  void FollowMe::actionSuccess(const bool success, const std::string& message)
- {
+{
      ROS_INFO_STREAM("Goal succeeded: " << message);
      result_.result.error_code = 0; //SUCCSSESS
      result_.status.status = 3; //SUCCSSESS
      as_.setSucceeded(result_.result, message);
- }
+}
+
+bool FollowMe::getTransform(const std::string& target_frame, const std::string& source_frame, Eigen::Affine3d& T)
+{
+      try
+      {
+          tf::StampedTransform Ts;
+          tf_listener_.waitForTransform(target_frame, source_frame, ros::Time(0), ros::Duration(1.0));
+          tf_listener_.lookupTransform(target_frame, source_frame, ros::Time(0), Ts);
+          tf::transformTFToEigen(Ts, T);
+          //std::cout << "Transform from " << source_frame << " to " << target_frame << ":\n" << T << std::endl;
+      }
+      catch (tf::TransformException& ex)
+      {
+          ROS_WARN("%s",ex.what());
+          return false;
+      }
+
+      return true;
+}
+
+bool FollowMe::setTransform(const std::string& target_frame, const std::string& source_frame, Eigen::Vector3d& in,Eigen::Vector3d& out)
+{
+    try
+    {
+        tf::StampedTransform Ts;
+        Eigen::Affine3d T;
+        tf_listener_.waitForTransform(target_frame, source_frame, ros::Time(0), ros::Duration(1.0));
+        tf_listener_.lookupTransform(target_frame, source_frame, ros::Time(0), Ts);
+        tf::transformTFToEigen(Ts, T);
+        out=T.rotation()*in;
+        //std::cout << "Transform from " << source_frame << " to " << target_frame << ":\n" << T << std::endl;
+    }
+    catch (tf::TransformException& ex)
+    {
+        ROS_WARN("%s",ex.what());
+        return false;
+    }
+
+    return true;
+}

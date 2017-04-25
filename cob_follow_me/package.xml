@@ -8,20 +8,23 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   
-  <depend>moveit_core</depend>
+  
+  <depend>actionlib</depend>
+  <depend>actionlib_msgs</depend>
   <depend>boost</depend>
+  <depend>control_msgs</depend>
+  <depend>eigen_conversions</depend>
+  <depend>geometry_msgs</depend>
+  <depend>moveit_core</depend>
+  <depend>moveit_fake_controller_manager</depend>
+  <depend>moveit_ros_planning_interface</depend>
+  <depend>moveit_ros_perception</depend>
   <depend>pluginlib</depend>
   <depend>roscpp</depend>
   <depend>rospy</depend>
   <depend>std_msgs</depend>
-  <depend>actionlib</depend>
-  <depend>control_msgs</depend>
-  <depend>actionlib_msgs</depend>
-  <depend>geometry_msgs</depend>
   <depend>tf</depend>
-  <depend>moveit_fake_controller_manager</depend>
-  <depend>moveit_ros_planning_interface</depend>
-  <depend>moveit_ros_perception</depend>
+  <depend>tf_conversions</depend>
   
   <export>
     <!-- Other tools can request additional information be placed here -->

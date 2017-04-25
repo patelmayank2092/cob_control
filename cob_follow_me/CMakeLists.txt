@@ -12,8 +12,10 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   actionlib 
   actionlib_msgs
+  eigen_conversions
   geometry_msgs
   tf
+  tf_conversions
   moveit_ros_planning
   moveit_ros_planning_interface
 )
