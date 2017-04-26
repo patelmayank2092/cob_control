@@ -5,16 +5,20 @@
 #include <tf_conversions/tf_eigen.h>
 #include <tf/transform_datatypes.h>
 #include <std_srvs/Trigger.h>
+
+#include <cob_follow_me/follow_trajectory_utils.h>
 #include <cob_srvs/SetString.h>
+#include <control_msgs/FollowJointTrajectoryAction.h>
 
 #include <actionlib/server/simple_action_server.h>
 #include <boost/shared_ptr.hpp>
 
-#include <control_msgs/FollowJointTrajectoryAction.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/WrenchStamped.h>
 
-#include <cob_follow_me/follow_trajectory_utils.h>
+#include <kdl/jntarray.hpp>
+#include <kdl/jntarrayvel.hpp>
+#include <kdl/frames.hpp>
 
 #include <eigen_conversions/eigen_msg.h>
 #include <Eigen/Geometry>
@@ -44,8 +48,12 @@ protected:
 
   ros::ServiceClient start_tracking_;
   ros::ServiceClient get_planning_scene_;
-  std::string tracking_frame_;    // the frame tracking the target
   ros::ServiceClient stop_tracking_;
+
+  ros::Publisher force_direction_pub_;
+
+  std::string tracking_frame_;    // the frame tracking the target
+
   bool tracking_;
 
   double update_rate_;
@@ -65,7 +73,7 @@ public:
       as_.registerPreemptCallback(boost::bind(&FollowTrajectoryInterface::preemptCallback, this));*/
       as_.start();
       cartesian_path_.reset(new geometry_msgs::PoseArray);
-      wrench_sub=nh_.subscribe("wrench", 1, &FollowMe::WrenchCallback,this);
+      wrench_sub=nh_.subscribe("/arm/joint_trajectory_controller/wrench", 1, &FollowMe::WrenchCallback,this);
 
   }
 
@@ -96,6 +104,8 @@ public:
   bool getTransform(const std::string& target_frame, const std::string& source_frame, Eigen::Affine3d& T);
 
   bool setTransform(const std::string& target_frame, const std::string& source_frame, Eigen::Vector3d& in, Eigen::Vector3d& out);
+
+  void visualizeForce(KDL::Wrench force);
 
 };
 
